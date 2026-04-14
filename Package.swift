@@ -7,7 +7,7 @@ let package = Package(
         .iOS(.v16)
     ],
     products: [
-        .library(
+        .executable(
             name: "ExtractIPA",
             targets: ["ExtractIPA"]
         )

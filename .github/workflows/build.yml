@@ -28,20 +28,42 @@ jobs:
 
     - name: Build for iOS
       run: |
+        # Generate Xcode project from Package.swift
+        swift package generate-xcodeproj
+
+        # Build using xcodebuild
         xcodebuild \
+          -project ExtractIPA.xcodeproj \
           -scheme ExtractIPA \
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -derivedDataPath build \
-          build
+          -arch arm64 \
+          build 2>&1 | tail -50
 
     - name: Create IPA
       run: |
-        APP_PATH="build/Build/Products/Release-iphoneos/ExtractIPA.app"
+        # Find and copy the built app bundle
+        APP_BUNDLE="build/Build/Products/Release-iphoneos/ExtractIPA.app"
+
+        if [ ! -d "$APP_BUNDLE" ]; then
+          echo "ERROR: App bundle not found at $APP_BUNDLE"
+          ls -R build/Build/Products/ || echo "Build products directory not found"
+          exit 1
+        fi
+
+        # Create proper IPA structure
         mkdir -p Payload
-        cp -r "$APP_PATH" Payload/ || echo "Creating mock IPA..."
-        mkdir -p ExtractIPA.app/Contents
-        zip -r ExtractIPA.ipa ExtractIPA.app/
+        cp -r "$APP_BUNDLE" Payload/
+
+        # Create IPA (just a zip with Payload directory)
+        cd Payload
+        zip -r ../ExtractIPA.ipa ExtractIPA.app/
+        cd ..
+
+        echo "✅ IPA created successfully"
+        ls -lh ExtractIPA.ipa
+        unzip -l ExtractIPA.ipa | head -20
 
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
