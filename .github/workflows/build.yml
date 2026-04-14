@@ -30,17 +30,32 @@ jobs:
           -destination 'generic/platform=iOS' \
           -derivedDataPath build \
           -arch arm64 \
+          -verbose \
           build 2>&1 | tee build.log
 
     - name: Check Build Output
       run: |
-        echo "Build directory structure:"
-        find build -type f -name "ExtractIPA*" 2>/dev/null | head -20
+        echo "=== Build directory structure ==="
+        find build -type f \( -name "ExtractIPA*" -o -name "*.app" \) 2>/dev/null | head -30
 
         if [ -d "build/Build/Products/Release-iphoneos/ExtractIPA.app" ]; then
+          echo ""
           echo "✅ App bundle found!"
+          echo ""
+          echo "=== App Bundle Contents ==="
           ls -lR build/Build/Products/Release-iphoneos/ExtractIPA.app/
+
+          echo ""
+          echo "=== Executable file info ==="
+          if [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
+            file build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA
+            ls -lh build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA
+            otool -L build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA 2>/dev/null | head -10 || echo "Binary inspection skipped"
+          else
+            echo "❌ Binary file not found!"
+          fi
         else
+          echo ""
           echo "⚠️ App bundle not found in expected location"
           find build -type d -name "*.app" 2>/dev/null
         fi
@@ -49,19 +64,23 @@ jobs:
       run: |
         # Use the built app bundle
         if [ -d "build/Build/Products/Release-iphoneos/ExtractIPA.app" ]; then
-          echo "Creating IPA from built app bundle..."
+          echo "✅ Creating IPA from built app bundle..."
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/ExtractIPA.app Payload/
 
-          echo "Verifying binary..."
-          file Payload/ExtractIPA.app/ExtractIPA || echo "Binary check complete"
+          echo ""
+          echo "=== Verifying copied bundle ==="
+          ls -lh Payload/ExtractIPA.app/ExtractIPA
+          file Payload/ExtractIPA.app/ExtractIPA
 
           # Create IPA (ZIP with proper structure)
           zip -r -q ExtractIPA.ipa Payload/
           echo "✅ IPA created successfully"
         else
           echo "❌ Build failed - no app bundle found"
-          cat build.log | grep -i error | head -20
+          echo ""
+          echo "=== Build Log Errors ==="
+          cat build.log | grep -i "error\|failed" | head -20
           exit 1
         fi
 

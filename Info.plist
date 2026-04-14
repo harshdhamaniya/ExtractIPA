@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
 <dict>
     <key>CFBundleName</key>
     <string>ExtractIPA</string>
@@ -12,15 +14,26 @@
     <string>com.tools.extractipa</string>
     <key>CFBundleExecutable</key>
     <string>ExtractIPA</string>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
     <key>MinimumOSVersion</key>
     <string>16.0</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
         <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-        <string>armv7</string>
+        <string>arm64</string>
     </array>
+    <key>NSBonjourServices</key>
+    <array/>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>ExtractIPA needs local network access</string>
 </dict>
+</plist>
