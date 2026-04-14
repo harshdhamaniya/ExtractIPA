@@ -21,99 +21,29 @@ jobs:
         sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
         xcodebuild -version
 
-    - name: Generate Xcode Project
+    - name: Build with Direct Compilation
       run: |
-        echo "Generating Xcode project from Package.swift..."
-        swift package generate-xcodeproj 2>&1 || echo "Project generation attempted"
-
-    - name: Build with xcodebuild
-      run: |
-        mkdir -p build
-
-        if [ -d "ExtractIPA.xcodeproj" ]; then
-          echo "✅ Building with Xcode project..."
-          xcodebuild \
-            -project ExtractIPA.xcodeproj \
-            -scheme ExtractIPA \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build \
-            build 2>&1 | tee build.log || true
-        else
-          echo "⚠️ No Xcode project, attempting direct compilation..."
-          iOS_SDK=$(xcrun --show-sdk-path --sdk iphoneos)
-
-          swiftc -o ExtractIPA \
-            -module-name ExtractIPA \
-            Sources/ExtractIPAApp.swift \
-            Sources/Models.swift \
-            Sources/AppLister.swift \
-            Sources/IPAExtractor.swift \
-            Sources/DocumentsManager.swift \
-            Sources/ViewModels.swift \
-            Sources/ContentView.swift \
-            -sdk "$iOS_SDK" \
-            -target arm64-apple-ios16.0 \
-            2>&1 | tee build.log || echo "Compilation note recorded"
-        fi
-
-    - name: Create App Bundle
-      run: |
-        echo "Creating app bundle..."
-        mkdir -p Payload/ExtractIPA.app
-
-        # Copy Info.plist and entitlements
-        [ -f "Info.plist" ] && cp Info.plist Payload/ExtractIPA.app/
-        [ -f "ExtractIPA.entitlements" ] && cp ExtractIPA.entitlements Payload/ExtractIPA.app/
-
-        # Find and copy binary from multiple possible locations
-        if [ -f "ExtractIPA" ]; then
-          cp ExtractIPA Payload/ExtractIPA.app/
-          echo "✅ Using compiled binary"
-        elif [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
-          cp "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" Payload/ExtractIPA.app/
-          echo "✅ Using xcodebuild binary"
-        else
-          # Fallback: include source code for on-device compilation
-          mkdir -p Payload/ExtractIPA.app/Sources
-          cp Sources/*.swift Payload/ExtractIPA.app/Sources/
-          echo "⚠️ Including source code (no binary compiled)"
-        fi
-
-        echo ""
-        echo "Bundle contents:"
-        ls -lh Payload/ExtractIPA.app/*
-
-    - name: Create IPA
-      run: |
-        echo "Creating IPA archive..."
-        zip -r -q ExtractIPA.ipa Payload/
-
-        echo "✅ IPA created"
-        ls -lh ExtractIPA.ipa
-
-        echo ""
-        echo "IPA structure:"
-        unzip -l ExtractIPA.ipa | grep -E "^Archive|Payload|ExtractIPA" | head -20
+        chmod +x build_ios.sh
+        ./build_ios.sh 2>&1 | tee build_output.log
 
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ExtractIPA-${{ github.run_number }}
-        path: ExtractIPA.ipa
+        path: build/ExtractIPA.ipa
         retention-days: 30
 
     - name: Create Release (on tag)
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
-        files: ExtractIPA.ipa
+        files: build/ExtractIPA.ipa
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Build Summary
       run: |
         echo "✅ ExtractIPA Build Complete"
-        echo "📦 Archive: ExtractIPA.ipa ($(du -h ExtractIPA.ipa | cut -f1))"
+        echo "📦 Archive: build/ExtractIPA.ipa ($(du -h build/ExtractIPA.ipa | cut -f1))"
         echo "🔧 iOS 16.0+ | arm64"
         echo "👤 Harsh Dhamaniya"
