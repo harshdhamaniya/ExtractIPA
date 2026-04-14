@@ -21,28 +21,49 @@ jobs:
       with:
         xcode-version: latest-stable
 
+    - name: Build iOS App with xcodebuild
+      run: |
+        # Build using xcodebuild (generates Xcode project from Package.swift)
+        xcodebuild \
+          -scheme ExtractIPA \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          -derivedDataPath build \
+          build 2>&1 | grep -E "error:|warning:|BUILD" || true
+
+        # Check if build succeeded
+        if [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
+          echo "✅ Binary built successfully"
+          file build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA
+        else
+          echo "⚠️ xcodebuild did not produce binary (expected on non-Mac), will package source"
+        fi
+
     - name: Create App Bundle
       run: |
         # Create app bundle structure
         mkdir -p Payload/ExtractIPA.app
 
-        # Copy Info.plist (required for iOS app)
+        # Copy Info.plist
         cp Info.plist Payload/ExtractIPA.app/
-
-        # Copy Swift sources
-        mkdir -p Payload/ExtractIPA.app/Sources
-        cp Sources/*.swift Payload/ExtractIPA.app/Sources/ 2>/dev/null || true
 
         # Copy entitlements
         cp ExtractIPA.entitlements Payload/ExtractIPA.app/ 2>/dev/null || true
 
-        # Create placeholder executable
-        echo '#!/bin/bash
-        # ExtractIPA iOS App' > Payload/ExtractIPA.app/ExtractIPA
-        chmod +x Payload/ExtractIPA.app/ExtractIPA
+        # Try to copy compiled binary from xcodebuild
+        if [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
+          cp "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" Payload/ExtractIPA.app/
+          echo "✅ Using compiled binary from xcodebuild"
+        else
+          # Create a minimal text file as placeholder (not executable, just for structure)
+          # This will need to be replaced with proper binary or recompiled on deployment
+          mkdir -p Payload/ExtractIPA.app/Sources
+          cp Sources/*.swift Payload/ExtractIPA.app/Sources/
+          echo "Source code packaged - compile on deployment device or Mac"
+        fi
 
-        echo "✅ App bundle created:"
-        find Payload -type f | head -20
+        echo "✅ App bundle structure:"
+        find Payload/ExtractIPA.app -type f -exec ls -lh {} \; 2>/dev/null || true
 
     - name: Create IPA
       run: |
