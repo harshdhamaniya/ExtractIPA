@@ -14,74 +14,75 @@ jobs:
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: latest-stable
-
-    - name: Build iOS App with xcodebuild
       run: |
-        # Build using xcodebuild (generates Xcode project from Package.swift)
+        sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+        xcodebuild -version
+
+    - name: Build with xcodebuild (Generic iOS)
+      run: |
+        mkdir -p build
         xcodebuild \
           -scheme ExtractIPA \
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -derivedDataPath build \
-          build 2>&1 | grep -E "error:|warning:|BUILD" || true
+          -arch arm64 \
+          build 2>&1 | tee build.log
 
-        # Check if build succeeded
-        if [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
-          echo "✅ Binary built successfully"
-          file build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA
+    - name: Check Build Output
+      run: |
+        echo "Build directory structure:"
+        find build -type f -name "ExtractIPA*" 2>/dev/null | head -20
+
+        if [ -d "build/Build/Products/Release-iphoneos/ExtractIPA.app" ]; then
+          echo "✅ App bundle found!"
+          ls -lR build/Build/Products/Release-iphoneos/ExtractIPA.app/
         else
-          echo "⚠️ xcodebuild did not produce binary (expected on non-Mac), will package source"
+          echo "⚠️ App bundle not found in expected location"
+          find build -type d -name "*.app" 2>/dev/null
         fi
 
-    - name: Create App Bundle
+    - name: Create IPA from App Bundle
       run: |
-        # Create app bundle structure
-        mkdir -p Payload/ExtractIPA.app
+        # Use the built app bundle
+        if [ -d "build/Build/Products/Release-iphoneos/ExtractIPA.app" ]; then
+          echo "Creating IPA from built app bundle..."
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/ExtractIPA.app Payload/
 
-        # Copy Info.plist
-        cp Info.plist Payload/ExtractIPA.app/
+          echo "Verifying binary..."
+          file Payload/ExtractIPA.app/ExtractIPA || echo "Binary check complete"
 
-        # Copy entitlements
-        cp ExtractIPA.entitlements Payload/ExtractIPA.app/ 2>/dev/null || true
-
-        # Try to copy compiled binary from xcodebuild
-        if [ -f "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" ]; then
-          cp "build/Build/Products/Release-iphoneos/ExtractIPA.app/ExtractIPA" Payload/ExtractIPA.app/
-          echo "✅ Using compiled binary from xcodebuild"
+          # Create IPA (ZIP with proper structure)
+          zip -r -q ExtractIPA.ipa Payload/
+          echo "✅ IPA created successfully"
         else
-          # Create a minimal text file as placeholder (not executable, just for structure)
-          # This will need to be replaced with proper binary or recompiled on deployment
-          mkdir -p Payload/ExtractIPA.app/Sources
-          cp Sources/*.swift Payload/ExtractIPA.app/Sources/
-          echo "Source code packaged - compile on deployment device or Mac"
+          echo "❌ Build failed - no app bundle found"
+          cat build.log | grep -i error | head -20
+          exit 1
         fi
 
-        echo "✅ App bundle structure:"
-        find Payload/ExtractIPA.app -type f -exec ls -lh {} \; 2>/dev/null || true
-
-    - name: Create IPA
+    - name: Verify IPA
       run: |
-        # Create IPA (ZIP with Payload directory at root)
-        # IMPORTANT: zip Payload/ not from inside it
-        zip -r ExtractIPA.ipa Payload/
-
-        echo "✅ IPA created successfully"
+        echo "IPA File Info:"
         ls -lh ExtractIPA.ipa
+
         echo ""
         echo "IPA Contents:"
-        unzip -l ExtractIPA.ipa | head -30
+        unzip -l ExtractIPA.ipa | head -40
+
+        echo ""
+        echo "Binary check:"
+        unzip -p ExtractIPA.ipa Payload/ExtractIPA.app/ExtractIPA | file - || echo "Binary extracted"
 
     - name: Upload IPA Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ExtractIPA-${{ github.run_number }}
-        path: "*.ipa"
+        path: ExtractIPA.ipa
         retention-days: 30
 
     - name: Create Release (on tag)
@@ -97,8 +98,12 @@ jobs:
 
     - name: Build Summary
       run: |
-        echo "✅ Build completed!"
-        echo "📦 IPA file ready for deployment"
-        if [ -f "ExtractIPA.ipa" ]; then
-          echo "📊 Size: $(du -h ExtractIPA.ipa | cut -f1)"
-        fi
+        echo "✅ ExtractIPA Build Complete"
+        echo "📦 Archive: ExtractIPA.ipa"
+        echo "📊 Size: $(du -h ExtractIPA.ipa | cut -f1)"
+        echo "🔧 Platform: iOS 16.0+"
+        echo "👤 Developer: Harsh Dhamaniya"
+        echo "🔗 Links:"
+        echo "   GitHub: https://github.com/harshdhamaniya"
+        echo "   LinkedIn: https://www.linkedin.com/in/harshdhamaniya/"
+
