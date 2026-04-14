@@ -55,7 +55,12 @@ class AppLister {
         let fileManager = FileManager.default
 
         // Resolve symlinks
-        let resolvedPath = try fileManager.destinationOfSymbolicLink(atPath: bundlePath) ?? bundlePath
+        let resolvedPath: String
+        do {
+            resolvedPath = try fileManager.destinationOfSymbolicLink(atPath: bundlePath)
+        } catch {
+            resolvedPath = bundlePath
+        }
 
         // Look for .app bundles inside
         var appBundlePath = resolvedPath

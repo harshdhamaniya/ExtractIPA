@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "ExtractIPA",
     platforms: [
-        .iOS(.v13)
+        .iOS(.v14)
     ],
     products: [
         .library(
