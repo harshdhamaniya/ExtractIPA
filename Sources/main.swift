@@ -1,5 +1,6 @@
 import SwiftUI
 
+@main
 struct ExtractIPAApp: App {
     @StateObject private var appListViewModel = AppListViewModel()
 
@@ -10,3 +11,4 @@ struct ExtractIPAApp: App {
         }
     }
 }
+
