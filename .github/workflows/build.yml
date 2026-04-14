@@ -46,10 +46,9 @@ jobs:
 
     - name: Create IPA
       run: |
-        # Create IPA (ZIP with Payload directory)
-        cd Payload
-        zip -r ../ExtractIPA.ipa ExtractIPA.app/
-        cd ..
+        # Create IPA (ZIP with Payload directory at root)
+        # IMPORTANT: zip Payload/ not from inside it
+        zip -r ExtractIPA.ipa Payload/
 
         echo "✅ IPA created successfully"
         ls -lh ExtractIPA.ipa
