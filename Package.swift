@@ -18,7 +18,7 @@ let package = Package(
             dependencies: [],
             path: "Sources",
             sources: [
-                "main.swift",
+                "ExtractIPAApp.swift",
                 "Models.swift",
                 "AppLister.swift",
                 "IPAExtractor.swift",
